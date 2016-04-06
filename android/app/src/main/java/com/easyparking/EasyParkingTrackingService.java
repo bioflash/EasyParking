@@ -20,6 +20,7 @@ public class EasyParkingTrackingService extends Service {
     private static int  UPDATE_INTERVAL= 30000;
     private static int INITIAL_DELAY=5000;
     private Timer timer = null;
+    private boolean isStarted;
     @Override
     public IBinder onBind(Intent arg0) {
       return null;
@@ -29,12 +30,15 @@ public class EasyParkingTrackingService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         // Let it continue running until it is stopped.
         //Toast.makeText(this, "Service Started", Toast.LENGTH_LONG).show();
-        if (timer!=null){
-            timer.cancel();
-        }else{
-            timer = new Timer();
+        synchronized (this){
+            if (timer!=null){
+                timer.cancel();
+            }else{
+                timer = new Timer();
+            }
+            timer.scheduleAtFixedRate(new UpdateTask(), INITIAL_DELAY, UPDATE_INTERVAL);
+            this.isStarted=true;
         }
-        timer.scheduleAtFixedRate(new UpdateTask(), INITIAL_DELAY, UPDATE_INTERVAL);
         Log.i("ParkingTrackingService", "Server started");
         return START_STICKY;
     }
@@ -62,11 +66,16 @@ public class EasyParkingTrackingService extends Service {
     }
     @Override
     public void onDestroy() {
-        super.onDestroy();
-        //Toast.makeText(this, "Service Destroyed", Toast.LENGTH_LONG).show();
-        if (timer!=null){
-            //Stop the timer
-            timer.cancel();
+        synchronized (this){
+            if (this.isStarted){
+                super.onDestroy();
+                this.isStarted=false;
+                //Toast.makeText(this, "Service Destroyed", Toast.LENGTH_LONG).show();
+                if (timer!=null){
+                    //Stop the timer
+                    timer.cancel();
+                }
+            }
         }
         Log.i("ParkingTrackingService", "Service destroyed!");
    }
